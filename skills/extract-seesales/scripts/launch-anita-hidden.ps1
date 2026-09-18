@@ -23,9 +23,10 @@ $repl = @{
     'TelnetOptionsInit=No'        = 'TelnetOptionsInit=Yes'
     'PromptForHost=Yes'           = 'PromptForHost=No'
     'BrowseForHost=Yes'           = 'BrowseForHost=No'
-    'AutoLogin=No'                = 'AutoLogin=Yes'
-    'AutoUser1="[^"]*"'           = 'AutoUser1="loganb"'
-    'AutoHost2="ord:"'            = 'AutoHost2=%null%'
+    'AutoLogin=Yes'               = 'AutoLogin=No'
+    'AutoUser1="[^"]*"'           = 'AutoUser1=%null%'
+    'AutoHost1="[^"]*"'           = 'AutoHost1=%null%'
+    'AutoHost2="[^"]*"'           = 'AutoHost2=%null%'
     'ShowTitlebar=Yes'            = 'ShowTitlebar=No'
     'ShowMenu=Yes'                = 'ShowMenu=No'
     'ShowSysMenu=Yes'             = 'ShowSysMenu=No'
@@ -40,7 +41,7 @@ $repl = @{
 }
 foreach ($k in $repl.Keys) { $raw = [regex]::Replace($raw, $k, $repl[$k]) }
 $raw = [regex]::Replace($raw, 'BlankAutoLogin=\w+', 'BlankAutoLogin=No')
-$raw = [regex]::Replace($raw, 'AutoUser2="[^"]*"', 'AutoUser2=""')
+$raw = [regex]::Replace($raw, 'AutoUser2="[^"]*"', 'AutoUser2=%null%')
 Set-Content -LiteralPath $dst -Value $raw -NoNewline
 $blank = [regex]::Match($raw, 'BlankAutoLogin=\w+').Value
 Write-Output "wcf $blank AutoUser1=$([regex]::Match($raw, 'AutoUser1=\"[^\"]*\"').Value)"

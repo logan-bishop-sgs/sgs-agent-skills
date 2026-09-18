@@ -21,6 +21,56 @@ count (`1 of 210`) is months of history.
 
 Pass the range to the script. Do not pixel-hunt Export.
 
+## Left off 2026-09-18 (read this first)
+
+**Proven today**
+
+- **Login** (hidden window): wait until `login:` paints, `chars loganb`
+  enter, wait for `Password:`, `chars` password enter, `y` if
+  `REMOVE?`, then IFORMS user then password **from separate snaps**.
+  Never `key 13` at Linux (hangs up). Never `AutoUser2=""` (blank
+  Linux password). `AutoLogin=No`, AutoHost `ogin:`/`ord:` `%null%`.
+  Dayton and Wheat Ridge both reached SEE SALES this way.
+- **Down-arrow** (VK 40) walks older months even when the form opens
+  `1 of 1`. Wheat Ridge went Sep 2026 → Feb 2025 (`20 of 20`).
+- **F7** opens service Group. **Page Down** opens
+  `Product for Service Group`.
+
+**Not finished today**
+
+- **Export `host '\x1b}s2,20\r'` did not email.** Same send as
+  2026-09-14. No new `SEEGROUPPROD` mail after Logan's manual
+  13:58 GMT+8 file. Do **not** add mouse/`sclick`/cell-probing.
+  Use **one hidden session** and that send. Confirm Inbox\SeeSales
+  and SharePoint, not a guess from the snap classifier (no tesseract).
+- Jan–Feb 2025 product files for non-Dayton labs are still missing.
+- Two AniTa windows may still be open (`use-idb057` Wheat Ridge with
+  chrome, `use-idb059` Dayton hidden). Close extras before a new run.
+
+## When it breaks (look, then pick up)
+
+Run hands-off. Do **not** watch every key. The script now **stops**
+instead of walking a dead session:
+
+- login / invalid password painted
+- **COMPANY WIDE** (F11)
+- title **Disconnected**
+- form stays on the same month after Down-arrow (date did not change)
+- Export wait with no `SEE GROUP PROD DONE` and no new
+  `seesales-seegroupprod-loganb.xls` mail
+
+Never type Invoice, `g`, or Export on **Please Log On**. User ID is
+`loganb` only; password only on the password line. Two failed IFORMS
+logons hang up. The runner **revives** a failed lab: close that host,
+log in again, retry up to `-Retries` (default 3). A `1 of 1` form
+is only the starting view — **Down-arrow** loads older months
+(count grows `2 of 2`, `3 of 3`, …). Then **you** look at
+the last snap in `%LOCALAPPDATA%\Temp\anita-capture\` only if
+retries are exhausted. Relogin, **no F11**. Do not keep Down-arrowing
+on a dead session. Logan's manual Wheat Ridge Export (2026-09-18
+13:58 GMT+8) landed a real product file (`SEEGROUPPROD`, SEP-2026,
+7.8 KB) in Inbox and SharePoint. F11 dumped the session.
+
 ## Hands-off (lab + months, no agent watching)
 
 One script logs in, opens SEE SALES, walks groups, emails, and stamps
@@ -34,8 +84,7 @@ powershell -File .cursor/skills/extract-seesales/scripts/run-seesales-extract.ps
 powershell -File .cursor/skills/extract-seesales/scripts/run-seesales-extract.ps1 -Lab all -ThisMonth
 # Labs: wheatridge, dayton, orlando, scott, houston (or 057/059/066/062/064)
 # -Lab all (or a comma list) logs in sequentially — one AniTa host at a time.
-# If the form opened 1 of 1 and you need more months:
-powershell -File .cursor/skills/extract-seesales/scripts/run-seesales-extract.ps1 -Lab dayton -Ytd -ExpandHistory
+# Do not pass -ExpandHistory. F11 is company-wide and dumps the session.
 ```
 
 `-ThisMonth` is the default if you omit a range. Group walk order is
@@ -45,9 +94,10 @@ changed.
 ## Timeframe script (already on the form)
 
 AniTa must already be on the SEE SALES **month list**, cursor on
-**Month** (how the form opens). Do **not** press F11 (collapses to
-`1 of 1`, this month only) unless you passed `-ExpandHistory` on the
-hands-off runner and the form is stuck on this month only.
+**Month** (how the form opens). Do **not** press F11. It opens
+COMPANY WIDE (empty / accunj errors) and can dump the login. If the
+form opens `1 of 1`, **Down-arrow** still walks older months. Do not
+stop and do not use F11.
 
 ```powershell
 # Current calendar year through this month (e.g. 2026-01 .. 2026-09)
@@ -146,8 +196,7 @@ What it does:
    **Page Up** (VK 33) back to the group list → **Down** to the next
    group. Repeat through `-Count`.
 5. More months: Navigate **1,2** → **`s`** (See sales) → Down to the
-   next older month → open groups again. Do **not** use F11 (company-wide
-   / accunj access errors).
+   next older month → open groups again. Do **not** press F11.
 6. Confirm `seesales-seegroupprod-loganb_*.xls` with
    `check-sharepoint-seesales.py --kind group`. Expect
    `Count × months` files. Same `-Count` is used every month — if a
@@ -181,9 +230,9 @@ set `HostName`, `TelnetOptionsInit=Yes`, `PromptForHost=No`,
 misses on accufla). Other labs use **1,2** + `g`. Group count is
 **`1 of M`**. accutx/accula Invoice hotkey is uppercase **`I`**.
 
-Do not press F11 unless the form opened `1 of 1` and you passed
-`-ExpandHistory`. Do not `SetWindowPos` at `Password:`. Do not ask
-Logan to type login. `use-idb064` is Houston (accutx), not Scott.
+Do not press F11 (company-wide; dumps the session). Do not
+`SetWindowPos` at `Password:`. Do not ask Logan to type login.
+`use-idb064` is Houston (accutx), not Scott.
 
 **Verified 2026-09-14 (UTC+8 afternoon):** Jan–Sep 2026 = 9 Exports,
 all DONE. SharePoint that day had **9 new** loganb files
@@ -218,7 +267,7 @@ paste the password into chat.
 - Commit `*.trc` files (they contain keystrokes).
 - Treat repo `anita.wcf` (two-line stub) or `C:\sgs\Logan_Bishop` as
   SEE SALES source. The form lives on the host.
-- Press **F11** when the job is more than the current month.
+- Press **F11** (company-wide; dumps the session).
 - Use `Esc+PgDn` to change month (that drills into accounts).
 - Use SendKeys / SendInput / `SetForegroundWindow` (Logan uses the PC).
 - Type the password at Linux `login:` or IFORMS `Enter user ID`.
@@ -235,7 +284,9 @@ timeframe.
    Disconnected). Default install `anita.wcf` points at `accunj`.
 2. Launch via `launch-anita-hidden.ps1` (no titlebar/menu/toolbar, no
    host-picker popup, `PromptForHost=No`, `BlankScreenTimeout=0`,
-   AutoLogin username `loganb` only). Never `SetForegroundWindow`.
+   **AutoLogin=No**). Do **not** leave `AutoUser2=""` — that sends a
+   blank Linux password and the session desyncs. Type `loganb` at
+   `login:`, password only at `Password:`. Never `SetForegroundWindow`.
    `anita-bg park` is **after IFORMS only** (bottom-right,
    `HWND_BOTTOM`). Moving the window at `login:` / `Password:`
    disconnects. True headless is not possible. Do **not** park fully
@@ -249,11 +300,19 @@ timeframe.
    `key` skips WM_CHAR for Backspace / PgUp-PgDn / Home / arrows /
    Insert / Delete (those VKs used to type `$!$-.%`). End still
    sends CHAR. Dates: `chars`, not `type` (hyphen is Insert).
-4. Linux `login:` then IFORMS `Please Log On`. Username is **`loganb`**
-   only. Password only at `Password:` / `Enter password:`. Two failed
-   IFORMS logons hang up. If it says `REMOVE?`, send `y` + Enter.
-5. ACCULIMS Main Menu → hotkey **I** (Invoice) → Enter on **See Sales**.
-6. Stay on the month list (`N of 210`). Cursor lands on Month.
+4. **Hand path (walked 2026-09-18, Wheat Ridge).** Wait until
+   `use-idb0XX login:` is painted (first snap is often blank). `chars`
+   `loganb` + WM_CHAR Enter. Wait until `Password:` paints. `chars`
+   password + Enter. If `REMOVE?`, `chars y` + Enter, then **wait** —
+   do not type IFORMS yet. On `Please Log On`: `chars loganb`, confirm
+   echo, WM_CHAR Enter, wait for `Enter password:`, then password.
+   Never `key 13` (Linux hang-up). Never `type` (KEYDOWN). Never send
+   user and password from the same snap. Two failed IFORMS logons hang
+   up. AniTa `AutoHost1=ogin:` / `AutoHost2=ord:` + empty `AutoUser2`
+   submitted a blank IFORMS password — those must stay `%null%`.
+5. ACCULIMS Main Menu (olive box) → `chars i` (Invoice; uppercase `I`
+   on Scott / Houston) → WM_CHAR Enter on **See Sales**.
+6. Stay on the month list (`N of 210` or `1 of 1`). Cursor lands on Month.
 
 Helpers: `anita-bg.exe host '\x1b}s2,20\r'` is Export.
 `anita-bg.exe key 40` is Down (older month). `key 38` is Up.

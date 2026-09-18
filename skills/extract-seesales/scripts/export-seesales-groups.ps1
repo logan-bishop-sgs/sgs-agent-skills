@@ -148,6 +148,32 @@ $st = Invoke-Anita $bg 'status'
 if ($st.Text -match 'no AniTa') { throw 'AniTa is not running. Open SEE SALES first, then rerun.' }
 if ($st.Text -match 'Disconnected' -or $st.Code -eq 4) { throw 'AniTa title is Disconnected. Relogin, open SEE SALES, then rerun.' }
 
+$reader = Join-Path $scriptDir 'read-anita-screen.py'
+$python = 'C:\Program Files\Python311\python.exe'
+function Read-Snap([string]$name) {
+    [void](Invoke-Anita $bg 'snap' $name)
+    $line = 'CLASS=unknown KEYS=-'
+    if (Test-Path $python) {
+        $line = (& $python $reader $name 2>$null | Select-Object -Last 1)
+        if (-not $line) { $line = 'CLASS=empty KEYS=-' }
+    }
+    Write-Output "SCREEN $name $line"
+    return $line
+}
+function Assert-Healthy([string]$line, [string]$where) {
+    $stat = Invoke-Anita $bg 'status'
+    if ($stat.Text -match 'Disconnected') { throw "AniTa disconnected ($where). Stop. Relogin." }
+    if ($line -match 'invaliduser') {
+        throw "Session is on login ($where). Relogin. Do not keep exporting."
+    }
+    if ($line -match 'iforms' -and $line -notmatch 'seesales|done') {
+        throw "Session is on login ($where). Relogin. Do not keep exporting."
+    }
+    if ($line -match 'companywide') {
+        throw "Company-wide screen ($where). Stop. Relogin without F11."
+    }
+}
+
 function Send-DownOrUp([int]$n) {
     if ($n -eq 0) { return }
     $vk = if ($n -gt 0) { 40 } else { 38 }
@@ -159,17 +185,30 @@ function Send-DownOrUp([int]$n) {
 }
 
 function Open-GroupView {
-    if ($loc -eq 'orlando') {
-        Write-Output 'F7 service Group (accufla 1,2+g misses)'
-        [void](Invoke-Anita $bg 'key' '118')
-        Start-Sleep -Seconds 4
-        return
+    $tries = @(
+        { Write-Output 'F7 service Group'; [void](Invoke-Anita $bg 'key' '118'); Start-Sleep -Seconds 4 },
+        { Write-Output 'NAVIGATE 1,2 then service Group (g)'; [void](Invoke-Anita $bg 'host' '\x1b}s1,2\r'); Start-Sleep -Seconds 2; [void](Invoke-Anita $bg 'type' 'g'); Start-Sleep -Seconds 3 },
+        { Write-Output 'NAVIGATE 1,3 then g'; [void](Invoke-Anita $bg 'host' '\x1b}s1,3\r'); Start-Sleep -Seconds 2; [void](Invoke-Anita $bg 'type' 'g'); Start-Sleep -Seconds 3 }
+    )
+    $n = 0
+    foreach ($step in $tries) {
+        $n++
+        & $step
+        $line = Read-Snap "groups-open-$n.png"
+        Assert-Healthy $line "open groups try $n"
+        if ($line -match 'accountview') {
+            Write-Output 'WARN landed in accounts; Esc back'
+            [void](Invoke-Anita $bg 'key' '27')
+            Start-Sleep -Seconds 2
+            continue
+        }
+        if ($line -match 'groups') {
+            Write-Output "GROUP_VIEW try=$n $line"
+            return
+        }
+        Write-Output "WARN still on month list after open try $n ($line)"
     }
-    Write-Output 'NAVIGATE 1,2 then service Group (g)'
-    [void](Invoke-Anita $bg 'host' '\x1b}s1,2\r')
-    Start-Sleep -Seconds 2
-    [void](Invoke-Anita $bg 'type' 'g')
-    Start-Sleep -Seconds 3
+    throw 'Never reached service Group (still on the month list). Relogin and open Group the way Logan does.'
 }
 
 function Return-SeeSales {
@@ -185,31 +224,41 @@ function Export-Groups([string]$label) {
         Write-Output "PAGEDOWN $label group $i / $Count (product breakout)"
         [void](Invoke-Anita $bg 'key' '34')
         Start-Sleep -Seconds 3
-        [void](Invoke-Anita $bg 'snap' "groups-$label-$i-prod.png")
+        $before = Read-Snap "groups-$label-$i-prod.png"
+        Assert-Healthy $before "$label group $i before Export"
+        if ($before -match 'accountview') {
+            throw "Page Down opened accounts ($label group $i). Need service Group first."
+        }
         Write-Output "EXPORT $label group $i / $Count"
         $sent = Invoke-Anita $bg 'host' '\x1b}s2,20\r'
         if ($sent.Code -ne 0) { throw "Export send failed for $label group $i" }
         $deadline = (Get-Date).AddSeconds($ExportWaitSeconds)
         $poll = 0
         $snapName = "groups-$label-$i.png"
+        $sawDone = $false
         do {
             Start-Sleep -Seconds 4
             $poll++
             $snapName = "groups-$label-$i-$poll.png"
-            [void](Invoke-Anita $bg 'snap' $snapName)
-            $stat = Invoke-Anita $bg 'status'
-            if ($stat.Text -match 'Disconnected') { throw "AniTa disconnected during $label group $i" }
+            $line = Read-Snap $snapName
+            Assert-Healthy $line "$label group $i export wait"
             Write-Output "  wait $label group=$i poll=$poll snap=$snapName"
+            if ($line -match 'done') { $sawDone = $true; break }
         } while ((Get-Date) -lt $deadline)
         Write-Output "WAITED $label group=$i ${ExportWaitSeconds}s (confirm snap $snapName / SharePoint)"
         $gcode = $groupList[$i - 1]
-        $row = @{ seq = $i; month = $label; location = $loc; group = $gcode; exportedAtUtc = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') } | ConvertTo-Json -Compress
-        Add-Content -LiteralPath $ledger -Value $row
         if ($StampOutlook) {
             if (-not $loc) { throw '-StampOutlook requires -Location' }
             $stampScript = Join-Path $scriptDir 'stamp-seegroup-outlook.ps1'
             & $stampScript -Location $loc -Group $gcode -Month $label -After (Get-Date).AddMinutes(-10) -WaitSeconds 90
+            if ($LASTEXITCODE -ne 0) {
+                throw "No SEEGROUPPROD mail after $label group $i ($gcode). Snap $snapName. Stop."
+            }
+        } elseif (-not $sawDone) {
+            throw "No DONE on snap after $label group $i. Snap $snapName. Stop. Do not keep walking."
         }
+        $row = @{ seq = $i; month = $label; location = $loc; group = $gcode; exportedAtUtc = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') } | ConvertTo-Json -Compress
+        Add-Content -LiteralPath $ledger -Value $row
         Write-Output "PAGEUP $label group $i (back to group list)"
         [void](Invoke-Anita $bg 'key' '33')
         Start-Sleep -Milliseconds $AfterDownMs
@@ -224,10 +273,16 @@ if ($AlreadyOnGroups -and $navSteps -ne 0) {
 }
 
 if (-not $AlreadyOnGroups) {
+    $beforeNav = Read-Snap 'groups-before-nav.png'
+    Assert-Healthy $beforeNav 'before month walk'
+    if ($navSteps -ne 0 -and $beforeNav -match 'oneofone') {
+        Write-Output "WARN form opened 1 of 1; Down-arrow still walks older months (count grows)."
+    }
     Write-Output "NAVIGATE $navSteps month steps to $($toDate.ToString('yyyy-MM'))"
     Send-DownOrUp $navSteps
     Start-Sleep -Milliseconds $AfterDownMs
-    [void](Invoke-Anita $bg 'snap' 'groups-month-start.png')
+    $afterNav = Read-Snap 'groups-month-start.png'
+    Assert-Healthy $afterNav 'after month walk'
 }
 
 for ($m = 0; $m -lt $months.Count; $m++) {

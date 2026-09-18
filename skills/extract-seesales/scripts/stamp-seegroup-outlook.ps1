@@ -87,7 +87,7 @@ do {
 } while ((Get-Date) -lt $deadline)
 
 if (-not $mail) {
-    Write-Output "NO_MAIL after ${WaitSeconds}s (OST may be stale — use stamp-seegroupprod.py on SharePoint)"
+    Write-Output "NO_MAIL after ${WaitSeconds}s (OST may be stale; stamp on SharePoint instead)"
     exit 2
 }
 

@@ -17,6 +17,8 @@ param(
     [switch]$ExpandHistory,
     [int]$ExportWaitSeconds = 25,
     [switch]$SkipSharePoint,
+    [switch]$StampOutlook,
+    [int]$Retries = 3,
     [switch]$WhatIf
 )
 
@@ -91,6 +93,7 @@ function New-ExportArgs([string]$loc, [string]$groupArg, [string]$hostName, [swi
     }
     if ($OnMonth) { $splat.OnMonth = $OnMonth }
     if (-not $DryRun -and $SkipSharePoint) { $splat.SkipSharePoint = $true }
+    if (-not $DryRun -and $StampOutlook) { $splat.StampOutlook = $true }
     return $splat
 }
 
@@ -107,32 +110,51 @@ if ($WhatIf) {
     return
 }
 
-$failed = New-Object System.Collections.Generic.List[string]
-foreach ($loc in $resolved) {
+function Stop-LabHost([string]$hostName) {
+    Get-Process Anita -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowTitle -match [regex]::Escape($hostName) } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+}
+
+function Invoke-LabPull([string]$loc) {
     $cfg = $labMap[$loc]
     $groupArg = if ($Groups) { $Groups } else { $cfg.Groups }
     $hostName = $cfg.Host
     Write-Output "PLAN lab=$loc host=$hostName groups=$groupArg invoice=$($cfg.Invoice)"
-    try {
-        & $login -HostName $hostName -Label $loc -InvoiceKey $cfg.Invoice
-        if ($LASTEXITCODE -ne 0) { throw "login-seesales failed for $loc" }
+    Stop-LabHost $hostName
+    & $login -HostName $hostName -Label $loc -InvoiceKey $cfg.Invoice
+    if ($LASTEXITCODE -ne 0) { throw "login-seesales failed for $loc" }
+    if ($ExpandHistory) {
+        Write-Output "SKIP F11 for $loc (company-wide dumps the session)"
+    }
+    $exportArgs = New-ExportArgs $loc $groupArg $hostName
+    & $export @exportArgs
+    if ($LASTEXITCODE -ne 0) { throw "export-seesales-groups failed for $loc" }
+    Write-Output "DONE lab=$loc"
+}
 
-        if ($ExpandHistory) {
-            Write-Output "F11 expand month list for $loc (only if the form opened 1 of 1)"
-            $exe = Join-Path $env:LOCALAPPDATA 'Temp\anita-capture\anita-bg.exe'
-            & $exe key 122 $hostName
-            Start-Sleep -Seconds 3
+if ($Retries -lt 1) { $Retries = 1 }
+$pending = New-Object System.Collections.Generic.List[string]
+foreach ($loc in $resolved) { $pending.Add($loc) }
+$failed = New-Object System.Collections.Generic.List[string]
+$attempt = 0
+while ($pending.Count -gt 0 -and $attempt -lt $Retries) {
+    $attempt++
+    $batch = @($pending)
+    $pending.Clear()
+    Write-Output "REVIVE attempt=$attempt of $Retries labs=$($batch -join ',')"
+    foreach ($loc in $batch) {
+        try {
+            Invoke-LabPull $loc
+        } catch {
+            Write-Output "RETRY lab=$loc attempt=$attempt $($_.Exception.Message)"
+            Stop-LabHost $labMap[$loc].Host
+            $pending.Add($loc)
         }
-
-        $exportArgs = New-ExportArgs $loc $groupArg $hostName
-        & $export @exportArgs
-        if ($LASTEXITCODE -ne 0) { throw "export-seesales-groups failed for $loc" }
-        Write-Output "DONE lab=$loc"
-    } catch {
-        Write-Output "FAIL lab=$loc $($_.Exception.Message)"
-        $failed.Add($loc)
     }
 }
+foreach ($loc in $pending) { $failed.Add($loc) }
 
 $fileInbox = Join-Path $scriptDir 'file-seesales-inbox.ps1'
 if (Test-Path $fileInbox) {

@@ -104,8 +104,10 @@ class AnitaBg {
         // Skip WM_CHAR when the VK code is a printable glyph.
         // Home=$, Insert=-, Delete=., Left=%, PgUp=!.
         // End (35) still sends CHAR — IFORMS uses it as Commit.
-        if (vk != 8 && vk != 33 && vk != 34
-            && (vk < 36 || vk > 40) && vk != 45 && vk != 46)
+        // No WM_CHAR for editing keys or F1-F12 (F7=118 would type 'v').
+        if (vk != 8 && vk != 27 && vk != 33 && vk != 34
+            && (vk < 36 || vk > 40) && vk != 45 && vk != 46
+            && (vk < 112 || vk > 123))
             SendMessage(canvas, WM_CHAR, (IntPtr)vk, IntPtr.Zero);
         SendMessage(canvas, WM_KEYUP, (IntPtr)vk, IntPtr.Zero);
     }
