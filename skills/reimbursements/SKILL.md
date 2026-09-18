@@ -45,13 +45,22 @@ in this skill. Do not invent amounts, vendors, cost centers, or policy.
    powershell -File .cursor/skills/reimbursements/scripts/run-expense-draft.ps1 -Job .cursor/skills/reimbursements/scripts/job.json
    ```
 
-5. Tell them what you put on the draft. **Do not click Submit.**
+5. **Before you say it is done**, check Workday for errors:
+
+   ```powershell
+   python .cursor/skills/reimbursements/scripts/fill_oop_line.py --check-only
+   ```
+
+   Exit `40` / `WORKDAY_ERRORS` means it is **not** done. Fix the
+   listed errors (usually an incomplete $0 line, Paid with Corporate
+   Card still on, or a required field). Re-check. Only then summarize.
+   **Do not click Submit.**
 
 Exit codes you must honor:
 
 | Code | Meaning | What you do |
 |------|---------|-------------|
-| 0 | Draft lines filled | Summarize. They review. |
+| 0 | Draft lines filled **and** error bar empty | Summarize. They review. |
 | 20 | `NEED_LOGIN` | Ask them to finish Edge sign-in. Re-run the same job. |
 | 30 | `HEAL` | Locator missed. Do **not** start clicking the whole report. Read `%LOCALAPPDATA%\sgs-workday-expense\last-fail.json`, patch `CONTEXT/workday-selectors.json`, retry **once**. |
 | 40 | Workday error | Read the dump. Ask them if it is a real Workday message. |
@@ -67,9 +76,24 @@ Exit codes you must honor:
   `line_done`, …). Prefer `data-automation-id`. Then label. Then
   visible text. Never Escape. Never the line **X**. Never **Submit**.
 
-Workday search on expense type **does not work**. The script finds the
-row by the **exact** `expense_item` string from the job (see
-[examples.md](examples.md)).
+Expense type: use the **exact** `US_*` string from
+[expense-items.json](expense-items.json) (dumped from the prompt DOM).
+Software / Cursor is `US_IT SUPPLIES`. Do not scroll the picker looking
+for a name. Refresh the dump with
+`python .cursor/skills/reimbursements/scripts/dump_expense_items.py`.
+
+**Add vs New Expense:** Expense Lines **Add** opens a menu.
+**New Expense** = they paid themselves (these Cursor invoices).
+**Credit Card Transactions** = pick a charge already on the SGS
+Citibank card. Do not use that for receipts that are not on the card
+grid. The script clicks **New Expense** only.
+
+Out-of-pocket line (this is the error if you skip it): **uncheck**
+Paid with Corporate Card (`data-automation-id="checkbox"` on that `li`,
+`data-automationcheckboxchecked` must be `false`). Then fill Expense
+Date (MM / DD / YYYY widgets), Expense Item, Quantity (usually `1`),
+Per Unit Amount, Currency (almost always USD), Memo. Total Amount is
+qty × per-unit — do not invent it.
 
 ## What to guess vs ask
 

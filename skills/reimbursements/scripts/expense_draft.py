@@ -381,17 +381,24 @@ def run_job(page, selectors: dict, job: dict) -> None:
                 time.sleep(0.2)
                 if checkbox_checked(paid) is not False:
                     raise LookupError("paid_with_card_still_checked")
-            if line.get("merchant"):
-                try:
-                    fill_named(page, selectors, "line_merchant", line["merchant"])
-                except LookupError:
-                    pass
             if line.get("date"):
-                try:
-                    fill_named(page, selectors, "line_date", line["date"])
-                except LookupError:
-                    pass
-            fill_named(page, selectors, "line_amount", str(line["amount"]))
+                y, m, d = str(line["date"]).split("-")
+                page.locator("li").filter(
+                    has=page.locator('[data-automation-id="formLabel"]:text-is("Expense Date")')
+                ).locator('[data-automation-id="dateSectionMonth-input"]').fill(m)
+                page.locator("li").filter(
+                    has=page.locator('[data-automation-id="formLabel"]:text-is("Expense Date")')
+                ).locator('[data-automation-id="dateSectionDay-input"]').fill(d)
+                page.locator("li").filter(
+                    has=page.locator('[data-automation-id="formLabel"]:text-is("Expense Date")')
+                ).locator('[data-automation-id="dateSectionYear-input"]').fill(y)
+            qty = str(line.get("qty") or "1")
+            page.locator("li").filter(
+                has=page.locator('[data-automation-id="formLabel"]:text-is("Quantity")')
+            ).locator('[data-automation-id="numericInput"]').first.fill(qty)
+            page.locator("li").filter(
+                has=page.locator('[data-automation-id="formLabel"]:text-is("Per Unit Amount")')
+            ).locator('[data-automation-id="numericInput"]').first.fill(str(line["amount"]))
 
         pick_expense_item(page, selectors, line["expense_item"])
         fill_named(page, selectors, "line_memo", line["memo"])
