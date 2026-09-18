@@ -13,97 +13,163 @@ description: >-
 **Talk to the user** with `.cursor/library-notes/voice.md`. Do the
 report yourself. Leave a **draft**. They submit.
 
-Do this in **Edge**, not Cursor’s helper window. See [login.md](login.md).
+Same shape as the LIMS skills: **you write a job and run a script**.
+You do **not** drive Workday click-by-click in Cursor’s helper window
+(that window cannot finish `sso.sgs.net`, and it is slow).
+
+Workday is a web page, not AniTa. There is no cell `2,20`. The closed
+path is: open the **Create Expense Report URL** in real Edge, then
+click/fill **named page elements** (`data-automation-id`, labels).
+Those names live in `selectors.json` plus a local overlay.
 
 Personal facts (name, memo style, cost center, receipts folder) live
 in **this working folder’s** notes (`CONTEXT/` or `context/`), not
 in this skill. Do not invent amounts, vendors, cost centers, or policy.
 
-## Start here
+## Start here (hands-off)
 
-1. Open Workday in Edge:
+1. Open Workday in Edge (once per session):
 
    ```powershell
    powershell -File .cursor/skills/reimbursements/scripts/Open-Workday-Edge.ps1
    ```
 
-2. Sign in if needed. If asked to remember this device, tick the box and Submit.
-3. Left menu (hamburger) → expand **Personal** if it is collapsed → **Expenses Hub** → **Create Expense Report**.
-4. Header: fill **Memo** only unless they said otherwise. Leave Company / date / accounting company as Workday filled them. Click **OK**.
-5. On Expense Lines: **Add**.
-   - Corporate card → **Credit Card Transactions**
-   - They paid themselves → **New Expense**, then turn off **Paid with Corporate Card**
-6. On the line: expense type, receipt, date that matches the charge or receipt, memo, amount.
-7. Click **Done** on the line so they can review. **Do not click Submit.**
+2. If Edge shows SGS sign-in or a phone check, **stop and ask them**.
+   Do not try Cursor’s window. See [login.md](login.md).
+3. Write a job JSON (receipts + lines). Use
+   `scripts/job.example.json` as the shape. Amounts and merchants come
+   from the card charge or the receipt — never guessed.
+4. Run the draft script. Do not pixel-hunt.
+
+   ```powershell
+   powershell -File .cursor/skills/reimbursements/scripts/run-expense-draft.ps1 -Job .cursor/skills/reimbursements/scripts/job.json
+   ```
+
+5. **Before you say it is done**, check Workday for errors:
+
+   ```powershell
+   python .cursor/skills/reimbursements/scripts/fill_oop_line.py --check-only
+   ```
+
+   Exit `40` / `WORKDAY_ERRORS` means it is **not** done. Fix the
+   listed errors (usually an incomplete $0 line, Paid with Corporate
+   Card still on, or a required field). Re-check. Only then summarize.
+   **Do not click Submit.**
+
+Exit codes you must honor:
+
+| Code | Meaning | What you do |
+|------|---------|-------------|
+| 0 | Draft lines filled **and** error bar empty | Summarize. They review. |
+| 20 | `NEED_LOGIN` | Ask them to finish Edge sign-in. Re-run the same job. |
+| 30 | `HEAL` | Locator missed. Do **not** start clicking the whole report. Read `%LOCALAPPDATA%\sgs-workday-expense\last-fail.json`, patch `CONTEXT/workday-selectors.json`, retry **once**. |
+| 40 | Workday error | Read the dump. Ask them if it is a real Workday message. |
+| 50 | Edge / Playwright missing | Open Edge with the helper. `pip install playwright` if needed. No `playwright install` — CDP uses the Edge that is already open. |
+
+## What the script talks to
+
+- **URL:** `https://wd3.myworkday.com/sgs/d/task/2997$728.htmld`
+  (`EXPENSE_URL` in `.env` overrides). That *is* Create Expense Report.
+  Do not walk hamburger → Personal → Expenses Hub unless the URL fails.
+- **Elements:** `selectors.json` keys (`header_memo`, `header_ok`,
+  `credit_card_transactions`, `paid_with_card`, `expense_item_prompt`,
+  `line_done`, …). Prefer `data-automation-id`. Then label. Then
+  visible text. Never Escape. Never the line **X**. Never **Submit**.
+
+Expense type: use the **exact** `US_*` string from
+[expense-items.json](expense-items.json) (dumped from the prompt DOM).
+Software / Cursor is `US_IT SUPPLIES`. Do not scroll the picker looking
+for a name. Refresh the dump with
+`python .cursor/skills/reimbursements/scripts/dump_expense_items.py`.
+
+**Add vs New Expense:** Expense Lines **Add** opens a menu.
+**New Expense** = they paid themselves (these Cursor invoices).
+**Credit Card Transactions** = pick a charge already on the SGS
+Citibank card. Do not use that for receipts that are not on the card
+grid. The script clicks **New Expense** only.
+
+Out-of-pocket line (this is the error if you skip it): **uncheck**
+Paid with Corporate Card (`data-automation-id="checkbox"` on that `li`,
+`data-automationcheckboxchecked` must be `false`). Then fill Expense
+Date (MM / DD / YYYY widgets), Expense Item, Quantity (usually `1`),
+Per Unit Amount, Currency (almost always USD), Memo. Total Amount is
+qty × per-unit — do not invent it.
 
 ## What to guess vs ask
 
 | Field | Rule |
 |-------|------|
 | Memo | Guess a short business reason from the merchant, date, and anything they said. Ask if it could be personal, client-sensitive, or unclear. |
-| Expense type | Guess from the merchant and receipt (meal, hotel, taxi, flight). Ask if two types could both fit. |
+| Expense type | Guess from the merchant and receipt (meal, hotel, taxi, flight). Ask if two types could both fit. Put the **exact Workday label** in the job. |
 | Date | Card charge date, or the receipt date if there is no card charge. |
-| Amount / merchant | Never guess. Use the card charge or receipt. |
-| Cost center / extra coding | Leave Workday defaults unless their notes say otherwise. Ask if Workday requires a field you have not seen before. |
+| Amount / merchant | Never guess. Use the card charge or receipt. Foreign currency: USD amount Workday showed; local total in the memo. |
+| Cost center / extra coding | Leave Workday defaults unless their notes say otherwise. |
 
-## Corporate card (usual path)
+## Corporate card vs out of pocket
 
-The charge is already on the corporate card, so it **shows up right away** on the first Create Expense Report screen.
+- **Card:** `kind: card`. Charge is already in Workday. Script matches
+  merchant + amount (+ date) on the credit-card grid. Never add a
+  second line for the same charge.
+- **Out of pocket:** `kind: oop`. Script adds New Expense and **turns
+  off** Paid with Corporate Card (`data-automationcheckboxchecked`,
+  not a missing tick mark). If it stays on, reimbursement is wrong.
 
-1. Find the matching charge in the credit card list.
-2. Select that charge only (not extra unrelated charges unless they asked).
-3. Continue (OK).
-4. Open that expense line.
-5. Attach the receipt to **that line**.
-6. Choose expense type. Add or tidy the line memo.
-7. Confirm amount and date still match the receipt.
+One PDF with several photos → one job line per receipt.
 
-Never create a second line for the same card charge (that looks like they want to be paid back for something the card already paid).
+If they say **only file one page** (for example the second invoice in a
+hotel PDF), split that page out and set `receipt` to **that page only**.
+Do not attach the whole PDF. Do not file the skipped invoice, even if
+it is a large hotel stay.
 
-## Out of pocket (they paid themselves)
+Before `kind: oop`, look at Credit Card Transactions for a matching
+charge. If none, Cancel, then New Expense.
 
-Use this path when they say the spend was personal / out of pocket, or no card charge appears.
+Adding to an **existing draft:** open it → Edit Expense Report → Add.
+That screen may have **Save for Later** and no line Done button. The
+script tries Done first, then Save for Later. Still do **not** Submit.
 
-1. Do not select a corporate-card charge for it.
-2. Add a **new expense**.
-3. Workday ticks **Paid with Corporate Card** by default. **Turn that off** before Done. If it stays on, every line shows a red error (“clear the Paid with Corporate Card check box”) and reimbursement can stay too low. Check `data-automationcheckboxchecked` — do not guess from a missing tick mark.
-4. Date, amount, and merchant come from the receipt. Attach the receipt. Choose type. Write memo.
+On a report that already has a converted foreign-currency line, reuse
+that same USD rate for later tickets in the same currency.
 
-If one PDF has several photos, make **one line per receipt**, not one line for the whole file.
+## When the script breaks (self-heal)
 
-## Line fields that must be filled
+Refresh skills **overwrites** `.cursor/skills/reimbursements/`. Heals
+go in **this repo**:
 
-- **Expense item:** search does **not** work. Open the prompt → **By Alphabetical Order** → scroll the list itself (not the page) and click. For meals, jump near scroll position 1980 for `US_MEALS (SELF, SGS EMP.)TIPS`. Click only when that row is in the middle of the screen, not under the header.
-- **Memo:** required. Type it in the Memo box, press Tab, then Done.
-- **Amount:** never invent. Foreign currency: see below.
+`CONTEXT/workday-selectors.json` (or `context/`)
 
-## Foreign currency
+Overlay is merged on top of the library `selectors.json` (same key
+wins). Example:
 
-Do **not** leave the line in local money (for example COP). Workday can convert on screen, but **Reimbursement stays 0.00** until the line is saved in **USD**. Put the USD amount Workday showed; write the local total in the memo.
+```json
+{
+  "header_ok": {
+    "css": ["[data-automation-id='theNewOkId']"]
+  }
+}
+```
 
-A leftover “meal over $100” warning can stick even when Submit is still allowed — leave it.
+1. Read `last-fail.json` (`step`, `url`, `automation` list, screenshot).
+2. In the **already-open Edge** page, find the control’s new
+   `data-automation-id` (or a stable label).
+3. Patch **only that key** in the overlay.
+4. Re-run the **same** job. If it fails a second time, stop and ask.
+5. Append `CONTEXT/skill-issues.md` (old id → new id). Offer
+   `report-skill-issue` so engineering can fold it into the library.
 
-## Receipts
+Do **not** PR `sgs-agent-skills` from a tech laptop. Do not rewrite
+this SKILL.md to “just click it yourself.”
 
-Inbox is the receipts folder in **this working folder**. Prefer PDF, JPG, or PNG. Track each file in a log there. Never file the same receipt twice. Move to a done folder only after they say it is submitted. If the folder is already named `reciepts/`, do not rename it.
-
-## Workday gotchas (confirmed)
-
-- Cursor’s helper window **cannot** finish SGS Windows sign-in (blank/black at `sso.sgs.net`). Stay in Edge. Do not try to copy cookies into Cursor’s window.
-- Never press **Escape** — it closes the report.
-- Never click the **X** in the top-right of a line — that closes the line or the whole report.
-- Close only the **Errors / Page Error** pop-up before Done. Do not click the report Close button.
-- After a line is filled, click **Done** (orange, bottom of the line). Errors do not clear until the line is saved.
+You may use Cursor’s browser tools **only** to read the dump / confirm
+one element while healing. You may not file the whole report that way.
 
 ## After the report is filled
 
-Tell them, in everyday words:
+Tell them, in everyday words: memo, each line (date, merchant, type,
+amount), that it is a **draft**, anything you guessed.
 
-- What you put on the report (memo, each line: date, merchant, type, amount)
-- That it is a **draft** (they submit)
-- Anything you guessed
-
-Then write what worked in their notes (`CONTEXT/work-log.md` or `context/workflows.md`) and add memo/type examples to [examples.md](examples.md) if a new pattern showed up.
+Write what worked in `CONTEXT/work-log.md`. Add a new memo/type
+pattern to [examples.md](examples.md) only if it is useful for everyone.
 
 ## Stop and ask
 
@@ -112,3 +178,4 @@ Then write what worked in their notes (`CONTEXT/work-log.md` or `context/workflo
 - Receipt is missing or does not match the amount
 - Workday shows an error, extra required field, or personal-expense flag
 - You would have to invent a cost center, project, or guest name
+- Two script retries already failed

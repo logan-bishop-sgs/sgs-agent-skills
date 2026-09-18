@@ -1,0 +1,34 @@
+{
+  "header_memo": "bogota 7/26",
+  "lines": [
+    {
+      "kind": "card",
+      "merchant": "Uber",
+      "date": "2026-09-10",
+      "amount": 24.5,
+      "expense_item": "US_MEALS (SELF, SGS EMP.)TIPS",
+      "memo": "Airport to hotel",
+      "receipt": "receipts/uber-0910.pdf"
+    },
+    {
+      "kind": "oop",
+      "merchant": "Cursor",
+      "date": "2026-09-15",
+      "amount": 193.20,
+      "qty": 1,
+      "expense_item": "US_IT SUPPLIES",
+      "memo": "Software Expense",
+      "receipt": "receipts/cursor-invoice.pdf"
+    },
+    {
+      "kind": "oop",
+      "merchant": "Sheraton Bogota",
+      "date": "2026-08-28",
+      "amount": 300.54,
+      "qty": 1,
+      "expense_item": "US_LAB CLOTHING - LAUNDRY/DRY CLEANING",
+      "memo": "Sheraton Bogota hotel laundry (Lavanderia). Ticket 913,920 COP (~$300.54 USD). Entered in USD because reimbursement stayed 0.00 when the line was in COP.",
+      "receipt": "receipts/sheraton-laundry.pdf"
+    }
+  ]
+}

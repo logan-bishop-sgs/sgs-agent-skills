@@ -1,0 +1,149 @@
+{
+  "_comment": "Named Workday locators. Library defaults. A working-repo overlay at CONTEXT/workday-selectors.json wins on the same key. Agents heal the overlay, not GitHub.",
+  "remember_device_checkbox": {
+    "css": [
+      "[data-automation-id='rememberDeviceCheckbox']",
+      "[data-automation-id='checkboxPanel'] input[type='checkbox']"
+    ],
+    "text": ["Remember this device"]
+  },
+  "remember_device_submit": {
+    "css": [
+      "[data-automation-id='wd-CommandButton'][title='Submit']",
+      "button[data-automation-id='submit']"
+    ],
+    "text": ["Submit"]
+  },
+  "create_report_heading": {
+    "text": ["Create Expense Report", "Expense Report"]
+  },
+  "header_memo": {
+    "css": [
+      "textarea[data-automation-id='memo']",
+      "[data-automation-id='memo'] textarea",
+      "[data-automation-id='textAreaField']"
+    ],
+    "label": "Memo"
+  },
+  "header_ok": {
+    "css": [
+      "[data-automation-id='wd-CommandButton'][title='OK']",
+      "button[data-automation-id='okButton']"
+    ],
+    "text": ["OK"]
+  },
+  "add_expense": {
+    "css": [
+      "[data-automation-id='addRow']",
+      "[title='Add']"
+    ],
+    "text": ["Add"]
+  },
+  "credit_card_transactions": {
+    "text": ["Credit Card Transactions"]
+  },
+  "new_expense": {
+    "text": ["New Expense"]
+  },
+  "card_grid": {
+    "css": [
+      "[data-automation-id='wd-DataGrid']",
+      "[role='grid']"
+    ]
+  },
+  "card_row": {
+    "css": [
+      "[data-automation-id='wd-DataGrid'] [role='row']",
+      "[role='row']"
+    ]
+  },
+  "expense_item_prompt": {
+    "css": [
+      "[data-automation-id='expenseItem']",
+      "[data-automation-id='promptIcon']"
+    ],
+    "label": "Expense Item"
+  },
+  "expense_item_alpha": {
+    "text": ["By Alphabetical Order"]
+  },
+  "expense_item_list": {
+    "css": [
+      "[data-automation-id='promptOption']",
+      "[data-automation-id='wd-Popup'] [role='option']",
+      "[data-automation-id='wd-Popup'] li"
+    ]
+  },
+  "line_memo": {
+    "css": [
+      "textarea[data-automation-id='memo']",
+      "[data-automation-id='memo'] textarea"
+    ],
+    "label": "Memo"
+  },
+  "line_amount": {
+    "css": [
+      "input[data-automation-id='amount']",
+      "[data-automation-id='numericInput']"
+    ],
+    "label": "Amount"
+  },
+  "line_date": {
+    "css": [
+      "input[data-automation-id='date']",
+      "[data-automation-id='dateSection'] input"
+    ],
+    "label": "Date"
+  },
+  "line_merchant": {
+    "css": [
+      "input[data-automation-id='merchant']",
+      "[data-automation-id='merchant'] input"
+    ],
+    "label": "Merchant"
+  },
+  "paid_with_card": {
+    "css": [
+      "[data-automation-id='paidWithCorporateCard']",
+      "[data-automation-id='checkboxPanel']"
+    ],
+    "text": ["Paid with Corporate Card"]
+  },
+  "attach_receipt": {
+    "css": [
+      "input[type='file']",
+      "[data-automation-id='fileUpload'] input[type='file']"
+    ],
+    "text": ["Select files", "Drop files"]
+  },
+  "line_done": {
+    "css": [
+      "[data-automation-id='wd-CommandButton'][title='Done']",
+      "button[data-automation-id='done']"
+    ],
+    "text": ["Done"]
+  },
+  "save_for_later": {
+    "css": [
+      "[data-automation-id='wd-CommandButton'][title='Save for Later']",
+      "button[data-automation-id='saveForLater']"
+    ],
+    "text": ["Save for Later"]
+  },
+  "edit_expense_report": {
+    "css": [
+      "[data-automation-id='wd-CommandButton'][title='Edit Expense Report']"
+    ],
+    "text": ["Edit Expense Report"]
+  },
+  "page_error_close": {
+    "css": [
+      "[data-automation-id='wd-Popup'] [title='Close']",
+      "[aria-label='Close']"
+    ],
+    "text": ["Close"]
+  },
+  "never_click": {
+    "text": ["Submit", "Close"]
+  }
+}

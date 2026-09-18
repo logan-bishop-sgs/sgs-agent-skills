@@ -1,6 +1,6 @@
 # Vision — agents for the whole team
 
-> Last verified: 2026-09-17
+> Last verified: 2026-09-18
 
 Library-owned. Logan updates this in `author-notes/`.
 
@@ -25,6 +25,21 @@ Full voice rules: `voice.md`.
 | Each person's repo `CONTEXT/` | Their agent + them | Project docs, `work-log.md`, **`skill-issues.md`** |
 
 Agents never "improve" the GitHub library from a tech laptop.
+
+## Script first (LIMS and Workday)
+
+Skills should look like **extract-seesales**: the person says the
+job, the agent writes a small input file, a script does the work.
+The agent does not click the UI every time.
+
+AniTa can be fully closed (known cells, `SendMessage`). Workday
+cannot — there is no API we can count on, and the canvas is a web
+page. The closed part is still a script: it opens the **task URL**
+and talks to **named page elements** (`data-automation-id`). When
+Workday renames an element, the agent patches
+`CONTEXT/workday-selectors.json` (refresh skills will not wipe that)
+and retries. It does not fall back to screenshot-clicking the whole
+report.
 
 ## Skill is wrong → engineering
 
