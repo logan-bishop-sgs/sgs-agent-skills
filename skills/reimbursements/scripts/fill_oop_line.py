@@ -11,6 +11,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from workday_dates import type_date_widgets
+
 
 def page_from_cdp(cdp: str):
     pw = sync_playwright().start()
@@ -54,30 +56,7 @@ def set_paid_with_card(page, want_checked: bool) -> None:
 
 
 def set_date(page, yyyy_mm_dd: str) -> None:
-    y, m, d = yyyy_mm_dd.split("-")
-    page.evaluate(
-        """({y,m,d}) => {
-          const lab = Array.from(document.querySelectorAll('[data-automation-id="formLabel"]'))
-            .find(el => el.innerText.trim() === 'Expense Date');
-          const li = lab.closest('li');
-          const set = (id, val) => {
-            const el = li.querySelector('[data-automation-id="' + id + '"]');
-            el.focus();
-            el.value = val;
-            el.dispatchEvent(new Event('input', {bubbles: true}));
-            el.dispatchEvent(new Event('change', {bubbles: true}));
-          };
-          set('dateSectionMonth-input', m);
-          set('dateSectionDay-input', d);
-          set('dateSectionYear-input', y);
-        }""",
-        {"y": y, "m": m, "d": d},
-    )
-    li = page.locator("li").filter(has=page.locator('[data-automation-id="formLabel"]', has_text="Expense Date"))
-    # Playwright fill is more reliable for Workday widgets
-    li.locator('[data-automation-id="dateSectionMonth-input"]').fill(m)
-    li.locator('[data-automation-id="dateSectionDay-input"]').fill(d)
-    li.locator('[data-automation-id="dateSectionYear-input"]').fill(y)
+    type_date_widgets(page, yyyy_mm_dd)
     print(f"date={yyyy_mm_dd}")
 
 

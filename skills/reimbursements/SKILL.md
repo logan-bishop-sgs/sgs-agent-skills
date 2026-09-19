@@ -26,6 +26,43 @@ Personal facts (name, memo style, cost center, receipts folder) live
 in **this working folder’s** notes (`CONTEXT/` or `context/`), not
 in this skill. Do not invent amounts, vendors, cost centers, or policy.
 
+## New report, not an old one
+
+If they ask you to file expenses, **start Create Expense Report**.
+That makes a report dated **today**. Do **not** open a sent-back,
+Saved for Later, Waiting on Initiator, or Paid report and add lines
+to it — even if the memo looks the same (“software”, Cursor).
+
+Reuse an existing report **only** when they name it (`WDERUS_…`) or
+say “add this to that draft.” Put that id in the job as
+`existing_report`. Otherwise the job is a new report.
+
+**2026-09-19 (Logan, Cursor invoices):** the agent put September
+Cursor receipts on `WDERUS_10002505`, an August 24 send-back that
+still had a July 2 line. Workday kept **July 2** on six of seven
+lines and the **report date stayed Aug 24**. Finance paid $1,146.61
+anyway. Logan could not find “yesterday’s $1,000+ Cursor report”
+because it looked like last month. The leftover $278.31 sat in My
+Tasks on another old report. That was the skill being wrong, not
+Logan.
+
+## Dates
+
+| What | Date to use |
+|------|-------------|
+| New report (header / report date) | **Today** — the day you are filing |
+| Each line | The **receipt** (invoice date of issue / amount-due date). No receipt: the card charge date. Neither: **today**. |
+
+Never copy a date from another report or from a leftover Workday
+line. `fill()` on the month/day/year boxes often **looks** done and
+then snaps back to the old date. **Type** the digits (select all,
+type), then **read the three boxes**. If they are not the receipt
+date, it is not done — heal and retry. Do not save and walk away.
+
+SGS (2026): expenses on or before **July 20** belong in Oracle, not
+Workday. A leftover July date can send the report back or file it
+in the wrong system.
+
 ## Start here (hands-off)
 
 1. Open Workday in Edge (once per session):
@@ -101,7 +138,7 @@ qty × per-unit — do not invent it.
 |-------|------|
 | Memo | Guess a short business reason from the merchant, date, and anything they said. Ask if it could be personal, client-sensitive, or unclear. |
 | Expense type | Guess from the merchant and receipt (meal, hotel, taxi, flight). Ask if two types could both fit. Put the **exact Workday label** in the job. |
-| Date | Card charge date, or the receipt date if there is no card charge. |
+| Date | Receipt date when you have a receipt. Else card charge date. Else today. Never an old report’s date. After fill, read the widgets. |
 | Amount / merchant | Never guess. Use the card charge or receipt. Foreign currency: USD amount Workday showed; local total in the memo. |
 | Cost center / extra coding | Leave Workday defaults unless their notes say otherwise. |
 
@@ -124,9 +161,11 @@ it is a large hotel stay.
 Before `kind: oop`, look at Credit Card Transactions for a matching
 charge. If none, Cancel, then New Expense.
 
-Adding to an **existing draft:** open it → Edit Expense Report → Add.
-That screen may have **Save for Later** and no line Done button. The
-script tries Done first, then Save for Later. Still do **not** Submit.
+Adding to an **existing draft** (only if they asked): open that
+report → Edit / Revise → Add. That screen may have **Save for Later**
+and no line Done button. The script tries Done first, then Save for
+Later. Still do **not** Submit. Still set each line date from the
+receipt and read it back.
 
 On a report that already has a converted foreign-currency line, reuse
 that same USD rate for later tickets in the same currency.

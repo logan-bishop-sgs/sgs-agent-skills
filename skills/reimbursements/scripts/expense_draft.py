@@ -16,6 +16,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from workday_dates import type_date_widgets
+
 EXIT_OK = 0
 EXIT_USAGE = 10
 EXIT_LOGIN = 20
@@ -107,6 +109,10 @@ def load_job(path: Path) -> dict:
             raise ValueError(f"lines[{i}].expense_item is required")
         if not line.get("memo"):
             raise ValueError(f"lines[{i}].memo is required")
+        if not line.get("date"):
+            raise ValueError(
+                f"lines[{i}].date is required (receipt date, else card date, else today)"
+            )
         receipt = line.get("receipt")
         if receipt:
             receipt_path = Path(receipt)
@@ -118,6 +124,13 @@ def load_job(path: Path) -> dict:
                 raise ValueError(f"receipt not found: {receipt}")
             line["receipt"] = str(receipt_path)
     job.setdefault("header_memo", "")
+    existing = str(job.get("existing_report") or "").strip()
+    if existing:
+        job["existing_report"] = existing
+        job["new_report"] = False
+    else:
+        job["new_report"] = True
+        job.pop("existing_report", None)
     return job
 
 
@@ -319,9 +332,13 @@ def close_page_error(page, selectors: dict) -> None:
 
 def run_job(page, selectors: dict, job: dict) -> None:
     expense_url = os.environ.get("EXPENSE_URL") or "https://wd3.myworkday.com/sgs/d/task/2997$728.htmld"
-    if "myworkday.com" not in (page.url or "") and not need_login(page.url or ""):
-        page.goto(expense_url, wait_until="domcontentloaded")
-    elif "2997" not in (page.url or "") and "myworkday.com" in (page.url or ""):
+    existing = (job.get("existing_report") or "").strip()
+    if existing:
+        if "myworkday.com" not in (page.url or "") and not need_login(page.url or ""):
+            page.goto(expense_url, wait_until="domcontentloaded")
+    else:
+        # Always Create Expense Report. Do not keep adding to whatever
+        # send-back or last-month report happens to be open.
         page.goto(expense_url, wait_until="domcontentloaded")
 
     if need_login(page.url or "", page.title()):
@@ -345,10 +362,11 @@ def run_job(page, selectors: dict, job: dict) -> None:
     if ok:
         ok.click()
         time.sleep(0.8)
-    edit = locate(page, selectors.get("edit_expense_report") or {}, timeout_ms=2000)
-    if edit:
-        edit.click()
-        time.sleep(0.8)
+    if existing:
+        edit = locate(page, selectors.get("edit_expense_report") or {}, timeout_ms=2000)
+        if edit:
+            edit.click()
+            time.sleep(0.8)
 
     for index, line in enumerate(job["lines"]):
         if line["kind"] == "card":
@@ -382,16 +400,7 @@ def run_job(page, selectors: dict, job: dict) -> None:
                 if checkbox_checked(paid) is not False:
                     raise LookupError("paid_with_card_still_checked")
             if line.get("date"):
-                y, m, d = str(line["date"]).split("-")
-                page.locator("li").filter(
-                    has=page.locator('[data-automation-id="formLabel"]:text-is("Expense Date")')
-                ).locator('[data-automation-id="dateSectionMonth-input"]').fill(m)
-                page.locator("li").filter(
-                    has=page.locator('[data-automation-id="formLabel"]:text-is("Expense Date")')
-                ).locator('[data-automation-id="dateSectionDay-input"]').fill(d)
-                page.locator("li").filter(
-                    has=page.locator('[data-automation-id="formLabel"]:text-is("Expense Date")')
-                ).locator('[data-automation-id="dateSectionYear-input"]').fill(y)
+                type_date_widgets(page, str(line["date"]))
             qty = str(line.get("qty") or "1")
             page.locator("li").filter(
                 has=page.locator('[data-automation-id="formLabel"]:text-is("Quantity")')

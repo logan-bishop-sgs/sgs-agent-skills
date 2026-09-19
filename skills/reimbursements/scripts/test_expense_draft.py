@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from expense_draft import load_job, merge_selectors, need_login
+from workday_dates import split_iso, widgets_equal
 
 
 class MergeSelectorsTests(unittest.TestCase):
@@ -33,6 +34,7 @@ class JobTests(unittest.TestCase):
                         "lines": [
                             {
                                 "kind": "oop",
+                                "date": "2026-09-15",
                                 "expense_item": "US_MEALS (SELF, SGS EMP.)TIPS",
                                 "memo": "x",
                             }
@@ -43,6 +45,55 @@ class JobTests(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 load_job(path)
+
+    def test_rejects_missing_date(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "job.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "lines": [
+                            {
+                                "kind": "oop",
+                                "amount": 10,
+                                "expense_item": "US_IT SUPPLIES",
+                                "memo": "x",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError):
+                load_job(path)
+
+    def test_new_report_unless_they_named_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "job.json"
+            line = {
+                "kind": "oop",
+                "date": "2026-09-16",
+                "amount": 278.31,
+                "expense_item": "US_IT SUPPLIES",
+                "memo": "Software Expense",
+            }
+            path.write_text(json.dumps({"lines": [line]}), encoding="utf-8")
+            job = load_job(path)
+            self.assertTrue(job["new_report"])
+            path.write_text(
+                json.dumps({"existing_report": "WDERUS_10002505", "lines": [line]}),
+                encoding="utf-8",
+            )
+            job = load_job(path)
+            self.assertFalse(job["new_report"])
+            self.assertEqual(job["existing_report"], "WDERUS_10002505")
+
+
+class DateWidgetTests(unittest.TestCase):
+    def test_split_and_match(self):
+        self.assertEqual(split_iso("2026-09-16"), ("2026", "09", "16"))
+        self.assertTrue(widgets_equal("09", "16", "2026", "2026-09-16"))
+        self.assertFalse(widgets_equal("07", "02", "2026", "2026-09-16"))
 
 
 if __name__ == "__main__":
