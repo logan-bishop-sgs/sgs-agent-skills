@@ -38,6 +38,7 @@ Edit [`author-notes/`](author-notes/README.md) **in this repo**. Setup copies th
 | `extract-tat-by-group` | Accutest TAT by service group |
 | `outlook-datadrop-rule` | Outlook → `us.ehs.datadrop@sgs.com` |
 | `reimbursements` | Workday expense **draft** via Edge URL + page elements (not Cursor’s window) |
+| `sgs-it-tickets` | ServiceNow / IAM ticket drafts (Entra, Graph); dedicated Edge + fill script |
 
 LIMS skills need AniTa, VPN, and `ANITA_PASSWORD` in `.env` or User env (never git). Workday expenses need Edge on this PC; username is `EXPENSE_USERNAME` or `SGS_EMAIL` (never git a password).
 

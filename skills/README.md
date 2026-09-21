@@ -9,3 +9,4 @@
 | `extract-tat-by-group` | Accutest TAT by service group |
 | `outlook-datadrop-rule` | Outlook → datadrop → SharePoint |
 | `reimbursements` | Workday expense draft (task URL + page elements in Edge) |
+| `sgs-it-tickets` | ServiceNow / IAM tickets (Entra catalog); Edge CDP 9223 + Playwright fill |

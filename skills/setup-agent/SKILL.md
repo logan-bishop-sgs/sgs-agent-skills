@@ -90,6 +90,8 @@ Copy from `<library>/skills/` → `<target>/.cursor/skills/<name>/`:
 - `reimbursements`
 - `extract-seesales`, `extract-tat-by-group`, `outlook-datadrop-rule`
   (skip LIMS only if they said no)
+- `environmental-data-analysis`
+- `sgs-it-tickets`
 
 Overwrite copies that came from this library. Keep extra skills already
 in the target.

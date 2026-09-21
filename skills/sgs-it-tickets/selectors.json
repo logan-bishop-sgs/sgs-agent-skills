@@ -1,0 +1,12 @@
+{
+  "_comment": "Create Azure AD Application registration (sc_cat_item 01714e3edb523f404ee710284b961975). Dump with dump_servicenow_form.py.",
+  "catalog_url": "https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=01714e3edb523f404ee710284b961975",
+  "app_name": { "id": "sp_formfield_app_name" },
+  "scope": { "id": "sp_formfield_scope" },
+  "short_description": { "id": "sp_formfield_var_short_description" },
+  "environment": { "id": "sp_formfield_env_type", "value": "prod" },
+  "application_url": { "id": "sp_formfield_app_url" },
+  "owner": { "id": "sp_formfield_owner" },
+  "description": { "id": "sp_formfield_description" },
+  "watch_list": { "id": "sp_formfield_watch_list" }
+}
