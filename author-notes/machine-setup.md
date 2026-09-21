@@ -1,6 +1,6 @@
 # Machine setup (Python, .env, installs)
 
-> Last verified: 2026-09-17
+> Last verified: 2026-09-18
 
 Library-owned. Two tracks: **full** (Logan / IT, can install software)
 and **light** (data tech laptop, locked down).
@@ -42,6 +42,12 @@ Do **not** fight Group Policy. Write a short leftover list:
 - `gh`
 - pip packages
 - fill `.env`
+
+## Logan PC — Agilent ChemStation
+
+This Windows box has **MSD ChemStation E.02.02** at `C:\msdchem`
+(offline Environmental Data Analysis / EnviroQuant). Map:
+`skills/environmental-data-analysis/`. Do not treat it as a CLI.
 
 ## Future requirements
 

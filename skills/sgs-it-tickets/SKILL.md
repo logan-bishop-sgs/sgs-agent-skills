@@ -63,6 +63,26 @@ From the user, repo `CONTEXT/`, or Azure docs:
 
 For Graph wording, see [templates.md](templates.md).
 
+**Recover filer-specific catalog pickers** (Application, Project or Application,
+Business Service) when the user does not remember:
+
+1. ServiceNow Edge → **My Tickets** → **View: Closed** (dropdown value `close`,
+   not a visible “Closed” tab).
+2. Open a **similar closed** request (same catalog family — e.g. “Request a new
+   Azure Web App” for Azure RBAC / App Service work).
+3. On the ticket → **Additional Details** (variables live there, not on Activity).
+4. Copy the **Project or Application** / **Application** value into the new draft.
+   **Access Request *Application* is a different select2** than Azure Web App *Project
+   or Application* — the CMDB string may not appear; put it in Business Reason and
+   pick the closest Azure row (often **Azure DevOps**) or leave blank if Submit allows.
+5. Store confirmed values in [filer-defaults.md](filer-defaults.md) for this
+   filer — not in `sgs-it.md` (team cases vs personal picker memory).
+
+Deep link when you already know the RITM:
+`https://sgs.service-now.com/sp?id=ticket&table=sc_req_item&sys_id=<sys_id>`
+(portal search by `number=RITM…` often returns “no access” in automation; clicking
+the **catalog item title** from Closed list returns a working `sys_id` URL).
+
 ### 3. Write the ticket draft
 
 Use the field tables in [templates.md](templates.md). Output for the user:
@@ -141,6 +161,7 @@ Tenant facts (do not drift):
 
 ## More
 
+- Filer-specific catalog picker values (Application, etc.): [filer-defaults.md](filer-defaults.md)
 - Background browser + login: [browser.md](browser.md)
 - Catalog URLs and `sys_id` values: [catalog-items.md](catalog-items.md)
 - Field tables and description blocks: [templates.md](templates.md)

@@ -45,6 +45,39 @@ class AnitaBg {
         Console.WriteLine("park " + x + "," + y + " size=" + w + "x" + h);
     }
 
+    // Spread multiple AniTa windows on-screen (default AniTa is ~765px wide — 3 cols
+    // overflows 1920px and looks like "one window"). Shrink to fit 2x3 on 1080p.
+    static void ParkTiled(IntPtr hwnd, int slot) {
+        if (slot < 0) { ParkOffscreen(hwnd); return; }
+        int gap = 8;
+        int screenW = GetSystemMetrics(SM_CXSCREEN);
+        int screenH = GetSystemMetrics(SM_CYSCREEN);
+        int cols = screenW >= 1900 ? 3 : 2;
+        int rows = (int)Math.Ceiling(5.0 / cols);
+        int w = Math.Max(480, (screenW - (cols + 1) * gap) / cols);
+        int h = Math.Max(360, (screenH - (rows + 1) * gap) / rows);
+        w = Math.Min(w, 720);
+        h = Math.Min(h, 540);
+        int col = slot % cols, row = slot / cols;
+        int x = gap + col * (w + gap);
+        int y = gap + row * (h + gap);
+        bool show = string.Equals(
+            Environment.GetEnvironmentVariable("ANITA_SHOW_WINDOW"), "1",
+            StringComparison.OrdinalIgnoreCase);
+        ShowWindow(hwnd, show ? 5 : SW_SHOWNOACTIVATE); // SW_SHOW vs no-activate
+        SetWindowPos(hwnd, HWND_BOTTOM, x, y, w, h, SWP_NOACTIVATE);
+        Console.WriteLine("park-tile slot=" + slot + " " + x + "," + y + " size=" + w + "x" + h + " cols=" + cols);
+    }
+
+    static void ParkWindow(IntPtr hwnd) {
+        string slotEnv = Environment.GetEnvironmentVariable("ANITA_TILE_INDEX");
+        int slot;
+        if (!string.IsNullOrWhiteSpace(slotEnv) && int.TryParse(slotEnv.Trim(), out slot) && slot >= 0)
+            ParkTiled(hwnd, slot);
+        else
+            ParkOffscreen(hwnd);
+    }
+
     static IntPtr Canvas(IntPtr hwnd) {
         IntPtr c = IntPtr.Zero;
         EnumChildWindows(hwnd, (h, l) => {
@@ -56,9 +89,19 @@ class AnitaBg {
         return c;
     }
 
+    static string CaptureRoot() {
+        return System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Temp", "anita-capture");
+    }
+
     static string CaptureDir() {
-        return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
-            + @"\Temp\anita-capture\";
+        string root = CaptureRoot();
+        string label = Environment.GetEnvironmentVariable("ANITA_CAPTURE_LABEL");
+        if (!string.IsNullOrWhiteSpace(label))
+            root = System.IO.Path.Combine(root, label.Trim());
+        System.IO.Directory.CreateDirectory(root);
+        return root + System.IO.Path.DirectorySeparatorChar;
     }
 
     static void SnapHwnd(IntPtr hwnd, string name) {
@@ -100,6 +143,12 @@ class AnitaBg {
     }
 
     static void Key(IntPtr canvas, int vk) {
+        // AniTa maps Backspace to telnet mouse/escape junk (e.g. ^[]s4,6) on
+        // Linux login: — never send it. Close the session and relogin instead.
+        if (vk == 8) {
+            Console.WriteLine("refuse: backspace (AniTa escape junk on login:)");
+            return;
+        }
         SendMessage(canvas, WM_KEYDOWN, (IntPtr)vk, IntPtr.Zero);
         // Skip WM_CHAR when the VK code is a printable glyph.
         // Home=$, Insert=-, Delete=., Left=%, PgUp=!.
@@ -134,10 +183,15 @@ class AnitaBg {
             }
             return ps[0];
         }
+        Process fallback = null;
         foreach (var cand in ps) {
-            if (cand.MainWindowTitle.IndexOf(titleNeedle, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (cand.MainWindowTitle.IndexOf(titleNeedle, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            if (cand.MainWindowTitle.IndexOf("Disconnected", StringComparison.OrdinalIgnoreCase) < 0)
                 return cand;
+            if (fallback == null) fallback = cand;
         }
+        if (fallback != null) return fallback;
         Console.WriteLine("no AniTa title matching " + titleNeedle);
         foreach (var cand in ps) Console.WriteLine("  pid=" + cand.Id + " title=" + cand.MainWindowTitle);
         return null;
@@ -155,11 +209,16 @@ class AnitaBg {
         // Never move the window here. SetWindowPos during login: / Password:
         // drops the telnet session. launch-anita-hidden.ps1 parks once.
         if (cmd == "park") {
-            ParkOffscreen(hwnd);
+            ParkWindow(hwnd);
             Console.WriteLine("title=" + p.MainWindowTitle);
             return 0;
         }
         Console.WriteLine("title=" + p.MainWindowTitle);
+        if (p.MainWindowTitle.IndexOf("Disconnected", StringComparison.OrdinalIgnoreCase) >= 0
+            && cmd != "status" && cmd != "snap") {
+            Console.WriteLine("refuse: disconnected");
+            return 4;
+        }
 
         if (cmd == "snap") {
             Snap(hwnd, canvas, args.Length > 1 ? args[1] : "bg.png");
@@ -193,6 +252,11 @@ class AnitaBg {
         if (cmd == "host") {
             string spec = args.Length > 1 ? args[1] : "";
             spec = spec.Replace("\\x1b", "\x1b").Replace("\\r", "\r").Replace("\\n", "\n");
+            if (spec.IndexOf("}s", StringComparison.Ordinal) >= 0
+                && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ANITA_LOGIN_ONLY"))) {
+                Console.WriteLine("refuse: mouse cell host during login-only");
+                return 5;
+            }
             foreach (char ch in spec) {
                 SendMessage(canvas, WM_CHAR, (IntPtr)ch, IntPtr.Zero);
                 Thread.Sleep(20);

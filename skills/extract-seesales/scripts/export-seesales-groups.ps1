@@ -25,6 +25,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptDir '..\..\..\..')).Path
+. (Join-Path $scriptDir 'anita-llm-assist.ps1')
 $cap = Join-Path $env:LOCALAPPDATA 'Temp\anita-capture'
 New-Item -ItemType Directory -Force -Path $cap | Out-Null
 
@@ -154,11 +155,42 @@ function Read-Snap([string]$name) {
     [void](Invoke-Anita $bg 'snap' $name)
     $line = 'CLASS=unknown KEYS=-'
     if (Test-Path $python) {
-        $line = (& $python $reader $name 2>$null | Select-Object -Last 1)
+        $line = (& $python $reader $name --lims 2>$null | Select-Object -Last 1)
         if (-not $line) { $line = 'CLASS=empty KEYS=-' }
     }
-    Write-Output "SCREEN $name $line"
+    Write-Host "SCREEN $name $line"
     return $line
+}
+
+function Get-ClassifierLine([object]$raw) {
+    if ($null -eq $raw) { return '' }
+    if ($raw -is [System.Array]) {
+        $last = $raw[-1]
+        return [string]$last
+    }
+    return [string]$raw
+}
+
+function Test-GroupScreen([string]$line) {
+    if ($line -match 'accountview') { return $false }
+    if ($line -match 'LIMS_OCR=.+(service group|product for service)') { return $true }
+    if ($line -match 'product for service') { return $true }
+    # OCR often empty; dense canvas after g/F7 is usually group list or product grid.
+    if ($line -match 'LIMS_DIAG=rows=(\d+)') {
+        $rows = [int]$Matches[1]
+        if ($rows -ge 90 -and $line -match 'seesales' -and $line -notmatch 'accountview') {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Reset-SeeSalesMonthList {
+    Write-Output 'RESET Navigate 1,2 then See sales (s) - clear account drill-down'
+    [void](Invoke-Anita $bg 'host' $AnitaCellNav12)
+    Start-Sleep -Seconds 2
+    [void](Invoke-Anita $bg 'type' 's')
+    Start-Sleep -Seconds 3
 }
 function Assert-Healthy([string]$line, [string]$where) {
     $stat = Invoke-Anita $bg 'status'
@@ -184,11 +216,20 @@ function Send-DownOrUp([int]$n) {
     }
 }
 
+# Anita cell navigate sequences (ESC}s row,col); built outside scriptblocks.
+$AnitaCellNav12 = [string][char]27 + '}s1,2' + "`r"
+$AnitaCellNav13 = [string][char]27 + '}s1,3' + "`r"
+$AnitaCellExport = [string][char]27 + '}s2,20' + "`r"
+
 function Open-GroupView {
+    $pre = Read-Snap 'groups-before-open.png'
+    if ($pre -match 'accountview|LIMS_OCR=.+(account view|account of)') {
+        Reset-SeeSalesMonthList
+    }
     $tries = @(
-        { Write-Output 'F7 service Group'; [void](Invoke-Anita $bg 'key' '118'); Start-Sleep -Seconds 4 },
-        { Write-Output 'NAVIGATE 1,2 then service Group (g)'; [void](Invoke-Anita $bg 'host' '\x1b}s1,2\r'); Start-Sleep -Seconds 2; [void](Invoke-Anita $bg 'type' 'g'); Start-Sleep -Seconds 3 },
-        { Write-Output 'NAVIGATE 1,3 then g'; [void](Invoke-Anita $bg 'host' '\x1b}s1,3\r'); Start-Sleep -Seconds 2; [void](Invoke-Anita $bg 'type' 'g'); Start-Sleep -Seconds 3 }
+        { Write-Output 'NAVIGATE 1,2 then service Group (g)'; [void](Invoke-Anita $bg 'host' $AnitaCellNav12); Start-Sleep -Seconds 2; [void](Invoke-Anita $bg 'type' 'g'); Start-Sleep -Seconds 4 },
+        { Write-Output 'F7 service Group'; [void](Invoke-Anita $bg 'key' '118'); Start-Sleep -Seconds 6 },
+        { Write-Output 'NAVIGATE 1,3 then g'; [void](Invoke-Anita $bg 'host' $AnitaCellNav13); Start-Sleep -Seconds 2; [void](Invoke-Anita $bg 'type' 'g'); Start-Sleep -Seconds 4 }
     )
     $n = 0
     foreach ($step in $tries) {
@@ -202,18 +243,42 @@ function Open-GroupView {
             Start-Sleep -Seconds 2
             continue
         }
-        if ($line -match 'groups') {
+        if (Test-GroupScreen $line) {
             Write-Output "GROUP_VIEW try=$n $line"
             return
         }
-        Write-Output "WARN still on month list after open try $n ($line)"
+        Write-Output "WARN not on service Group after try $n ($line)"
     }
-    throw 'Never reached service Group (still on the month list). Relogin and open Group the way Logan does.'
+    if (-not $HostTitle) { throw 'Could not open service Group (no HostTitle for LLM). Snap groups-open-*.png' }
+    for ($llmRound = 1; $llmRound -le 3; $llmRound++) {
+        $snapBase = "groups-open-llm-$llmRound"
+        $line = Read-Snap $snapBase
+        Write-Output "LIMS_LLM round=$llmRound phase=open-service-group"
+        $llm = Invoke-AnitaLlmAssist -Phase 'open-service-group' -HostTitle $HostTitle `
+            -ClassifierLine (Get-ClassifierLine $line) -SnapBaseName $snapBase -Mode export -RepoRoot $repoRoot
+        if (-not $llm) { break }
+        if ($llm.action -eq 'none') { break }
+        try {
+            $applied = Apply-AnitaLlmExportAction -Obj $llm -BgExe $bg -HostTitle $HostTitle `
+                -Nav12 $AnitaCellNav12 -Nav13 $AnitaCellNav13
+        } catch {
+            Write-Output "LIMS_LLM apply failed $($_.Exception.Message)"
+            throw
+        }
+        if (-not $applied) { break }
+        $after = Read-Snap "groups-open-llm-after-$llmRound.png"
+        Assert-Healthy $after "llm open groups round $llmRound"
+        if (Test-GroupScreen $after) {
+            Write-Output "GROUP_VIEW llm-round=$llmRound $after"
+            return
+        }
+    }
+    throw 'Could not open service Group (heuristics + LLM). Snap groups-open-*.png — escalate to Logan if AniTa looks wrong.'
 }
 
 function Return-SeeSales {
     Write-Output 'NAVIGATE 1,2 then See sales (s)'
-    [void](Invoke-Anita $bg 'host' '\x1b}s1,2\r')
+    [void](Invoke-Anita $bg 'host' $AnitaCellNav12)
     Start-Sleep -Seconds 2
     [void](Invoke-Anita $bg 'type' 's')
     Start-Sleep -Seconds 3
@@ -223,15 +288,28 @@ function Export-Groups([string]$label) {
     for ($i = 1; $i -le $Count; $i++) {
         Write-Output "PAGEDOWN $label group $i / $Count (product breakout)"
         [void](Invoke-Anita $bg 'key' '34')
-        Start-Sleep -Seconds 3
+        Start-Sleep -Seconds 5
         $before = Read-Snap "groups-$label-$i-prod.png"
         Assert-Healthy $before "$label group $i before Export"
         if ($before -match 'accountview') {
             throw "Page Down opened accounts ($label group $i). Need service Group first."
         }
-        Write-Output "EXPORT $label group $i / $Count"
-        $sent = Invoke-Anita $bg 'host' '\x1b}s2,20\r'
+        $preExport = Read-Snap "groups-$label-$i-preexport.png"
+        if ($preExport -match '\bdone\b') {
+            Write-Output 'WARN stale DONE banner; reset See sales then reopen groups'
+            Return-SeeSales
+            Open-GroupView
+            for ($g = 1; $g -lt $i; $g++) { Send-DownOrUp 1 }
+            [void](Invoke-Anita $bg 'key' '34')
+            Start-Sleep -Seconds 5
+        }
+        Write-Output "EXPORT $label group $i / $Count (AniTa cell 2,20 paint click, not a keyboard hotkey)"
+        $groupExportAfter = Get-Date
+        $sent = Invoke-Anita $bg 'host' $AnitaCellExport
         if ($sent.Code -ne 0) { throw "Export send failed for $label group $i" }
+        Start-Sleep -Seconds 2
+        $sent2 = Invoke-Anita $bg 'host' $AnitaCellExport
+        if ($sent2.Code -ne 0) { Write-Output 'WARN second Export click send failed' }
         $deadline = (Get-Date).AddSeconds($ExportWaitSeconds)
         $poll = 0
         $snapName = "groups-$label-$i.png"
@@ -250,9 +328,31 @@ function Export-Groups([string]$label) {
         if ($StampOutlook) {
             if (-not $loc) { throw '-StampOutlook requires -Location' }
             $stampScript = Join-Path $scriptDir 'stamp-seegroup-outlook.ps1'
-            & $stampScript -Location $loc -Group $gcode -Month $label -After (Get-Date).AddMinutes(-10) -WaitSeconds 90
+            & $stampScript -Location $loc -Group $gcode -Month $label -After $runStartUtc -WaitSeconds 90
             if ($LASTEXITCODE -ne 0) {
-                throw "No SEEGROUPPROD mail after $label group $i ($gcode). Snap $snapName. Stop."
+                $fallback = Get-ChildItem -LiteralPath $cap -Filter 'seesales-seegroupprod-loganb*.xls' -ErrorAction SilentlyContinue |
+                    Where-Object { $_.LastWriteTime -ge $groupExportAfter.AddSeconds(-10) } |
+                    Sort-Object LastWriteTime -Descending |
+                    Select-Object -First 1
+                if ($fallback) {
+                    $stamp = Get-Date $fallback.LastWriteTime.ToUniversalTime() -Format 'yyyyMMddHHmmss'
+                    $newName = "seesales-seegroupprod-$loc-$gcode-$label`_$stamp.xls"
+                    $tmp = Join-Path $cap $newName
+                    Copy-Item -LiteralPath $fallback.FullName -Destination $tmp -Force
+                    Write-Output "STAMP_FALLBACK $tmp from $($fallback.Name) (Outlook OST lag; file on disk)"
+                    $datadrop = $env:DATADROP_TO
+                    if (-not $datadrop) { $datadrop = 'us.ehs.datadrop@sgs.com' }
+                    $ol = New-Object -ComObject Outlook.Application
+                    $out = $ol.CreateItem(0)
+                    $out.To = $datadrop
+                    $out.Subject = "SeeSales group prod $loc $gcode $label"
+                    $out.Body = "Stamped from capture fallback after NO_MAIL."
+                    [void]$out.Attachments.Add($tmp)
+                    $out.Send()
+                    Write-Output "SENT $newName to $datadrop"
+                } else {
+                    throw "No SEEGROUPPROD mail after $label group $i ($gcode). Snap $snapName. Stop."
+                }
             }
         } elseif (-not $sawDone) {
             throw "No DONE on snap after $label group $i. Snap $snapName. Stop. Do not keep walking."

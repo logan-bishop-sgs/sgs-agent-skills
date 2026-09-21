@@ -43,6 +43,64 @@ Script keys in `Open-ServiceNow-Edge.ps1`: `portal`, `entra-app-registration-leg
 | Graph admin consent on **existing** registration | *(no stable sys_id)* | Reply on IAM’s open ticket with client ID |
 | Endpoint / firewall / GPO-style IAM | [Other IAM `7dec6166…`](#other-iam-request-gpo--firewall) | Confirm title in browser; may be wrong for **Azure platform** plumbing — search “azure”, “hybrid”, “network” first |
 | VPN, software, general IT | Portal search | Draft text; user or IAM picks item |
+| Azure RBAC / subscription / RG access (Contributor, `az login` ops) | [Access Request `d9d3e9d8…`](#access-request-azure-rbac--platform) | Verified 2026-09-21 via portal search “cloud platform access”; if IAM reroutes, record the correct sys_id here |
+| Azure platform ask with no clear catalog | [Other IAM `7dec6166…`](#other-iam-request-gpo--firewall) | Narrative in Description; ask reroute |
+| Corporate DNS **`xxxx.sgs.com`** for Azure App Service | [DNS subdomain `68d0954c…`](#dns-subdomain-xxxxsgscom) | **Use this** for `intelligence.sgs.com` — not domain registration |
+| Register/transfer whole domain (e.g. `something.com`) | [Domain Name Request Form `9d0cdae3…`](#domain-name-request-form) | **Not** for `*.sgs.com` subdomains — form text links to subdomain item |
+
+## DNS subdomain (`xxxx.sgs.com`)
+
+**Portal title:** varies — opened from **Domain Name Request Form** help text when type is registration.
+
+**Use for:** new **subdomains under `sgs.com`** (CNAME/alias to Azure App Service, etc.). Example: `intelligence.sgs.com` → `us-ehs-tv-reports-….azurewebsites.net`.
+
+- **sys_id:** `68d0954c1b92e01040b0eb186e4bcb83`
+- **URL:** https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=68d0954c1b92e01040b0eb186e4bcb83&sysparm_category=7c2e77891b33f01040b0eb186e4bcb72
+- **Draft:** `ehs_dashboard/CONTEXT/drafts/servicenow-custom-domain-ehs-dashboard-2026-09-22.txt`
+
+## Domain Name Request Form
+
+**Portal title:** `Domain Name Request Form - Service Portal`
+
+**Use for:** **register / transfer / decommission a domain** — **not** `xxxx.sgs.com` subdomains (form points to `68d0954c…` above).
+
+- **sys_id:** `9d0cdae3476a9910a1a7efb2e36d43ed`
+- **URL:** https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=9d0cdae3476a9910a1a7efb2e36d43ed
+
+## Access Request (Azure RBAC / platform)
+
+**Portal title:** `Access Request - Service Portal`
+
+**Use for:** Azure Resource Manager role grants, subscription/RG operational access,
+`az login` parity for a team — **not** Entra app registration (use `01714e3e…`) and
+**not** firewall/GPO (use Other IAM unless IAM says otherwise).
+
+- **sys_id:** `d9d3e9d81b608950b1fc740e1d4bcbce`
+- **URL:** https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=d9d3e9d81b608950b1fc740e1d4bcbce
+- **Script key:** `access-request` in `Open-ServiceNow-Edge.ps1`
+- **Automated fill (partial):** `fill_servicenow_access_request.py` +
+  `run-servicenow-fill-access-request.ps1` — fills Roles, environment detail,
+  Business Reason, first affected email, watch list. **You** still pick Type of
+  action, Business Service, Application, Environment in the UI.
+- **Draft example:** `ehs_dashboard/CONTEXT/drafts/servicenow-azure-rbac-team-access-2026-09-21.txt`
+- **Form dump:** `ehs_dashboard/CONTEXT/drafts/servicenow-access-request-form-dump.json`
+
+| Label (UI) | `name` / `id` | Notes |
+|------------|---------------|--------|
+| Requested for | `requested_for` / `sp_formfield_requested_for` | User picker |
+| Type of action | `type_of_action` / `sp_formfield_type_of_action` | Select — manual |
+| Business Service | (select2) | Manual |
+| Application | (select2) | **Not** the same list as Azure Web App *Project or Application* — `Generative AI Lab Reports - GLOBAL` (RITM0953558) is **missing** here (2026-09-21). Use **Azure DevOps** or leave blank; put CMDB name in Business Reason — [filer-defaults.md](filer-defaults.md) |
+| Environment | (select) | Manual — prod + nonprod |
+| Please add here the environment needed | `please_complete_here_the_enviroment_needed` / `sp_formfield_please_complete_here_the_enviroment_needed` | Subscription + RG text |
+| Roles | `roles` / `sp_formfield_roles` | e.g. Contributor @ RG scope |
+| Business Reason | `business_reason` / `sp_formfield_business_reason` | **Main narrative** |
+| Affected User Email | `affected_user_email` / `sp_formfield_affected_user_email` | One email per ticket if IAM requires split |
+| Watch List | `watch_list` / `sp_formfield_watch_list` | select2 click-to-add |
+
+**Note:** `General Identity Governance and Administration request`
+(`0107280693c2c750fd15f5d8b903d67d`) dumped the same field set (2026-09-21) —
+prefer **Access Request** unless IAM names IGA.
 
 ## Create Azure AD Application registration (Entra)
 
