@@ -5,23 +5,106 @@
 
 Base portal: https://sgs.service-now.com/sp
 
-## Create Azure AD Application registration (use for Entra apps)
+Mirror form dumps (field ids for agents): `ehs_dashboard/CONTEXT/drafts/servicenow-entra-form-dump.json`, `servicenow-form-dump.json`.
 
-**Verified 2026-09-21:** form fields `app_name`, `scope`, `env_type`, etc.
-Selectors: `selectors.json`. Fill: `run-servicenow-fill.ps1`.
+## How to find and verify a catalog item
+
+Hardest step is often **picking the right `sc_cat_item`**, not writing the description.
+
+1. **Ask IAM** on an open ticket if they already named a catalog title — use their exact words in portal search.
+2. **Portal search** (logged-in ServiceNow Edge, CDP 9223):
+   - UI: Service Portal → search box, scope **Service Catalog**.
+   - URL pattern: `https://sgs.service-now.com/sp?id=search&spa=1&t=sc&q=<query>` (URL-encode spaces).
+   - Script: `scripts/search_servicenow_catalog.py` (exit **20** = not signed in; finish login in Edge, re-run). Uses `load` not `networkidle` — SN SPA may hang on `networkidle`.
+3. **Verify before filing:** open the item and check the **browser tab title** matches what you expect (e.g. “Create Azure AD Application registration”, not “Other IAM request”).
+4. **Dump fields** while the form is open: `python scripts/dump_servicenow_form.py` — today it defaults to Entra `01714e3e…`; for another item, navigate Edge to that `sc_cat_item` URL first, then dump (or extend the script with `--url`).
+5. **Record here:** `sys_id`, portal title, when to use / when **not** to use, stable field ids (`sp_formfield_*`), whether Playwright fill exists (`selectors.json` + `run-servicenow-fill.ps1`).
+
+**Deep link shape:** `https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=<32-char hex>`
+
+**Open Edge:**
+
+```powershell
+powershell -File .cursor/skills/sgs-it-tickets/scripts/Open-ServiceNow-Edge.ps1 -Catalog portal
+# or -Url 'https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=...'
+```
+
+Script keys in `Open-ServiceNow-Edge.ps1`: `portal`, `entra-app-registration-legacy`, `entra-app-registration`.
+
+## Request type → catalog (quick map)
+
+| You need… | Catalog | Action if unsure |
+|-----------|---------|------------------|
+| New Entra app registration (SSO or daemon) | [Entra registration `01714e3e…`](#create-azure-ad-application-registration-entra) | Do **not** use Teodore’s `7dec6166…` link until IAM fixes mapping |
+| Graph admin consent on **existing** registration | *(no stable sys_id)* | Reply on IAM’s open ticket with client ID |
+| Endpoint / firewall / GPO-style IAM | [Other IAM `7dec6166…`](#other-iam-request-gpo--firewall) | Confirm title in browser; may be wrong for **Azure platform** plumbing — search “azure”, “hybrid”, “network” first |
+| VPN, software, general IT | Portal search | Draft text; user or IAM picks item |
+
+## Create Azure AD Application registration (Entra)
+
+**Portal title:** `Create Azure AD Application registration - Service Portal`
+
+**Use for:** new Microsoft Entra Application Registrations (daemon **or** user SSO). IAM used this for RITM1077272; verified again for SSO draft 2026-09-21.
 
 - **sys_id:** `01714e3edb523f404ee710284b961975`
 - **URL:** https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=01714e3edb523f404ee710284b961975
 - **Script key:** `entra-app-registration-legacy` (default in `Open-ServiceNow-Edge.ps1`)
+- **Automated fill:** `selectors.json` + `run-servicenow-fill.ps1` + draft `.txt` (see `templates.md`)
 
-## Catalog `7dec6166…` (IAM “new” link — wrong form as of 2026-09-21)
+| Label (UI) | `name` / `id` | Notes |
+|------------|---------------|--------|
+| ApplicationName | `app_name` / `sp_formfield_app_name` | e.g. `SGS-US-EHS-DASHBOARD-SSO-PROD` |
+| Scope | `scope` / `sp_formfield_scope` | Free text; list Graph perms + Internal/External if asked |
+| Short Description | `var_short_description` / `sp_formfield_var_short_description` | One-line summary |
+| Environment | `env_type` / `sp_formfield_env_type` | Select: `prod`, `dev`, `test`, `uat`, `nonprod` (fill script maps “Production” → `prod`) |
+| Application URL | `app_url` / `sp_formfield_app_url` | Prod or dev slot URL |
+| Owner | `owner` / `sp_formfield_owner` | Name / email |
+| Description | `description` / `sp_formfield_description` | Large textarea |
+| Watch List | `watch_list` / `sp_formfield_watch_list` | Select2 — type email, **click** the matching result (Enter alone may not stick) |
+| Business service / Service offering | `sp_formfield_business_service`, `sp_formfield_service_offering` | Often pre-filled (~32 chars); usually leave as-is |
 
-Teodore named `7dec6166477f8594a1a7efb2e36d43de` for future apps (2026-09-18), but it
-opens **Other IAM request** (GPO / firewall), not Entra registration. Do **not** file
-Entra apps there until IAM fixes the catalog mapping.
+## Other IAM request (GPO / firewall)
+
+**Portal title:** `Other IAM request - Service Portal`
+
+**Use for:** IAM security intake with **firewall / endpoint / GPO** style fields (src/dst IP, ports, protocol). **Not** the Entra registration form.
+
+**Trap:** Teodore DeCastro named `7dec6166477f8594a1a7efb2e36d43de` for *future new apps* (2026-09-18). That URL opens **this** form, not “Create Azure AD Application registration”. Until IAM fixes the catalog mapping, file Entra apps only on `01714e3e…`.
 
 - **sys_id:** `7dec6166477f8594a1a7efb2e36d43de`
-- **Script key:** `entra-app-registration` (avoid for Entra until corrected)
+- **URL:** https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=7dec6166477f8594a1a7efb2e36d43de
+- **Script key:** `entra-app-registration` (misleading name — opens Other IAM)
+- **Automated fill:** `fill_servicenow_other_iam.py` + `run-servicenow-fill-other-iam.ps1` (short description, description, watch list — not Type of request / firewall sub-fields)
+
+| Label (UI) | `name` / `id` | Notes |
+|------------|---------------|--------|
+| Type of request | `type_of_request` / `sp_formfield_type_of_request` | Select — drives which sub-fields show |
+| Windows | `window` / `sp_formfield_window` | Select |
+| Trusted Site | `trusted_site` / `sp_formfield_trusted_site` | |
+| Short Description | `var_short_description` / `sp_formfield_var_short_description` | |
+| Reference (SDEFW#) | `reference_i_e_sdefw` / `sp_formfield_reference_i_e_sdefw` | |
+| UserAccountName | select2 + hidden select | User picker |
+| Type of risk | `type_of_risk` / `sp_formfield_type_of_risk` | |
+| Rationale | `rationale` / `sp_formfield_rationale` | |
+| Src (remote) IP/s | `src_remote_ip_s` / `sp_formfield_src_remote_ip_s` | |
+| Src (remote) port/s | `src_remote_port_s` / `sp_formfield_src_remote_port_s` | |
+| Protocol | `protocol` / `sp_formfield_protocol` | |
+| Dst (workstation) IP/s | `dst_workstation_ip_s` / `sp_formfield_dst_workstation_ip_s` | Wording is workstation-centric — for **Azure → corp** put Azure/outbound context in **Description** and ask IAM to route |
+| Dst (workstation) port/s | `dst_workstation_port_s` / `sp_formfield_dst_workstation_port_s` | |
+| Application | select2 | |
+| Executable path | (see dump) | |
+| Profile | select | |
+| Region / Country | select fields | |
+| IT Security Regional Manager | `it_security_regional_manager_useraccountname` | |
+| Description of the request | `u_description_of_the_request` / `sp_formfield_u_description_of_the_request` | **Main narrative** for complex asks |
+| Watch list | `watch_list` / `sp_formfield_watch_list` | Same select2 behavior as Entra |
+| Priority | `u_priority` / `sp_formfield_u_priority` | |
+| Business Service / Service Offering | pre-filled often | |
+
+**Azure corp connectivity (2026-09-21):** no dedicated `sys_id` in our notes.
+**Best guess:** file here anyway; narrative in `u_description_of_the_request`;
+ask IAM to reroute to cloud/network if wrong. Draft:
+`ehs_dashboard/CONTEXT/drafts/servicenow-azure-corp-network-2026-09-21.txt`.
 
 ## Graph / API permissions on existing registration
 
@@ -32,9 +115,8 @@ against the Web App or registration when you ask.
 permissions ticket** with the Application (client) ID. Do not file a
 second catalog item unless IAM explicitly names one.
 
-## Finding other items
+## Anti-patterns (catalog)
 
-1. Open portal (script key `portal`).
-2. Search catalog for what IAM said (exact catalog title).
-3. If unsure, draft the description anyway and ask the user to search
-   — or reply on an open ticket quoting IAM's catalog name.
+- Filing Entra on `7dec6166…` because Teodore’s email said “future apps” — **verify tab title**.
+- Opening a **second** catalog item for Graph consent when a ticket already exists — **reply** with client ID.
+- Assuming **watch list** users get Graph or app access — watch list is **ticket visibility only** (state that in Entra description when relevant).

@@ -8,13 +8,23 @@ import sys
 from playwright.sync_api import sync_playwright
 
 CDP = "http://127.0.0.1:9223"
-CATALOG = (
+DEFAULT_CATALOG = (
     "https://sgs.service-now.com/sp?id=sc_cat_item"
     "&sys_id=01714e3edb523f404ee710284b961975"
 )
 
 
 def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Dump ServiceNow catalog form fields from Edge CDP.")
+    parser.add_argument(
+        "--url",
+        default=DEFAULT_CATALOG,
+        help="sc_cat_item URL to open if the active tab is not already on a catalog form",
+    )
+    args = parser.parse_args()
+    catalog = args.url
     pw = sync_playwright().start()
     browser = pw.chromium.connect_over_cdp(CDP)
     page = None
@@ -26,7 +36,7 @@ def main() -> int:
         print("No service-now.com tab", file=sys.stderr)
         return 1
     if "sc_cat_item" not in page.url:
-        page.goto(CATALOG, wait_until="networkidle", timeout=120_000)
+        page.goto(catalog, wait_until="networkidle", timeout=120_000)
     page.wait_for_timeout(3000)
     data = page.evaluate(
         """() => {

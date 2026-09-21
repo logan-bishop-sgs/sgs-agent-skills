@@ -92,12 +92,6 @@ After creation, please return client ID, tenant ID, and client secret
 MFA / Microsoft Authenticator is enforced by tenant Conditional Access;
 no separate "Authenticator permission" is required.
 
-Authorization (state in Description for IAM):
-- Delegated permissions only for mail/calendar/chat — consenting signed-in user.
-- No Outlook passwords / EWS; MSAL + Graph API only.
-- Application will deny Graph features per user even if they are SGS staff.
-- ServiceNow watch list is ticket visibility, not data access.
-
 Contact: TEAM_NAME (filer).
 ```
 
@@ -130,8 +124,8 @@ NAME
 |------|-----------------|----------------|
 | Daemon Teams presence (all users) | Application | `Presence.Read.All`, `User.Read.All` |
 | Signed-in user's profile | Delegated | `User.Read` |
-| Signed-in user's mail (read + send as user) | Delegated | `Mail.Read`, `Mail.Send` |
-| Signed-in user's calendar (read + write) | Delegated | `Calendars.Read`, `Calendars.ReadWrite` |
-| Signed-in user's Teams chats (read + send) | Delegated | `Chat.Read`, `Chat.ReadWrite` |
+| Signed-in user's mail | Delegated | `Mail.Read`, `Mail.Send` |
+| Signed-in user's calendar | Delegated | `Calendars.Read`, `Calendars.ReadWrite` |
+| Signed-in user's Teams chats | Delegated | `Chat.Read` |
 
 Always say **admin consent** when IAM must tenant-consent (typical at SGS).

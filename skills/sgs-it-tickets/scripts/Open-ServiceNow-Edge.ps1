@@ -4,7 +4,7 @@
 # Agents attach via http://127.0.0.1:9223 (Playwright CDP)
 
 param(
-    [ValidateSet('portal', 'entra-app-registration', 'entra-app-registration-legacy')]
+    [ValidateSet('portal', 'entra-app-registration', 'entra-app-registration-legacy', 'other-iam')]
     [string]$Catalog = 'entra-app-registration-legacy',
     [string]$Url
 )
@@ -14,6 +14,7 @@ $ErrorActionPreference = "Stop"
 $CatalogUrls = @{
     'portal' = 'https://sgs.service-now.com/sp'
     'entra-app-registration' = 'https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=7dec6166477f8594a1a7efb2e36d43de'
+    'other-iam' = 'https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=7dec6166477f8594a1a7efb2e36d43de'
     'entra-app-registration-legacy' = 'https://sgs.service-now.com/sp?id=sc_cat_item&sys_id=01714e3edb523f404ee710284b961975'
 }
 
