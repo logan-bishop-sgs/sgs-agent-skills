@@ -5,6 +5,10 @@
 
 Base portal: https://sgs.service-now.com/sp
 
+**NAM email intake (not a catalog item):** `nam.it.support@sgs.com` can
+auto-open ServiceNow for **email access** requests (2026-09-21). Other
+types unverified — see `ehs_dashboard/CONTEXT/sgs-it.md`.
+
 Mirror form dumps (field ids for agents): `ehs_dashboard/CONTEXT/drafts/servicenow-entra-form-dump.json`, `servicenow-form-dump.json`.
 
 ## How to find and verify a catalog item

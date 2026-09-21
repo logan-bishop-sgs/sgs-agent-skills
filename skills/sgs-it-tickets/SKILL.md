@@ -40,6 +40,7 @@ Never put client secrets, passwords, or PATs in the ticket body.
 | **B. Graph on existing app** | Registration exists; need admin consent / more scopes | **Reply on the open IAM ticket** — do not open a new catalog item unless IAM names one |
 | **C. Wrong intake bounced** | IAM closed ticket: "no App Registration" | Usually **A**, then **B** on the original Graph ticket with the new client ID |
 | **D. General IT** | Not Entra/Graph (VPN, software, access) | ServiceNow portal search — you draft text; they pick the item IAM names |
+| **D2. NAM email access** | Mailbox / email permissions (NAM) | Email **`nam.it.support@sgs.com`** — auto-creates SN ticket (verified email-access only, 2026-09-21); see `ehs_dashboard/CONTEXT/sgs-it.md` § NAM IT Support email |
 | **E. Firewall / endpoint / GPO** | Src/dst IP, ports, IAM security | Often [Other IAM `7dec6166…`](catalog-items.md#other-iam-request-gpo--firewall) — **verify title**; search for Azure/hybrid-specific catalog first |
 | **F. Teodore “future apps” link** | Email pointed at `7dec6166…` | Opens **Other IAM**, not Entra — use [`01714e3e…`](catalog-items.md#create-azure-ad-application-registration-entra) for registrations until IAM fixes mapping |
 
